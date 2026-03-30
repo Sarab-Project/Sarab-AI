@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
 from matplotlib.cm import ScalarMappable
 import os
-import cv2
 
 def createCustomColormap():
     colorMapping = [
@@ -68,9 +67,12 @@ def getClosestColorIndex(value, thicknessValues):
                 return i+1
     return len(thicknessValues) - 1
 
-
 def loadCorneaFile(filename):
-    fileExtension = os.path.splitext(filename)[1].lower()    
+    fileExtension = os.path.splitext(filename)[1].lower()
+    
+    print(f"Loading file: {filename}")
+    print(f"File extension: {fileExtension}")
+    
     with open(filename, 'r') as file:
         content = file.read()
     
@@ -111,10 +113,14 @@ def parseCornealData(fileContent):
     
     return blocks
 
-def createCircularMap(dataBlock, cmap=None, norm=None, figsize=(10, 10)):
+def createCircularMap(dataBlock, title="Corneal Thickness Map", 
+                        cmap=None, norm=None, thicknessValues=None, boundaries=None,
+                        figsize=(12, 10)):
     data = np.array(dataBlock)
     nRings, nMeridians = data.shape
-
+    
+    print(f"  Map dimensions: {nRings} rings × {nMeridians} meridians")
+    
     maskedData = np.ma.masked_where(data <= -900, data)
     
     theta = np.linspace(0, 2*np.pi, nMeridians, endpoint=False)
@@ -138,13 +144,46 @@ def createCircularMap(dataBlock, cmap=None, norm=None, figsize=(10, 10)):
     
     ax.grid(False)
     ax.set_yticklabels([])
-    ax.set_xticklabels([])
-    ax.set_xticks([])
+    
+    meridianLabels = ['90°', '45°', '0°', '315°', '270°', '225°', '180°', '135°']
+    ax.set_xticks(np.linspace(0, 2*np.pi, 8, endpoint=False))
+    ax.set_xticklabels(meridianLabels)
+    
+    plt.title(title, pad=20)
+    
+    if thicknessValues and boundaries:
+        cbarAx = fig.add_axes([0.92, 0.15, 0.02, 0.7])
+        
+        normCbar = plt.Normalize(vmin=boundaries[0], vmax=boundaries[-1])
+        mappable = ScalarMappable(norm=normCbar, cmap=cmap)
+        mappable.set_array([])
+        
+        tickPositions = thicknessValues
+        cbar = plt.colorbar(mappable, cax=cbarAx, ticks=tickPositions[::2])
+        cbar.set_label('Corneal Thickness (µm)')
+    
+    validData = data[data > -900]
+    missingCount = np.sum(data <= -900)
+    totalCount = data.size
+    
+    if len(validData) > 0:
+        statsText = f"Min: {np.min(validData):.1f} µm\nMax: {np.max(validData):.1f} µm\nMean: {np.mean(validData):.1f} µm"
+        ax.text(0, -0.15, statsText, transform=ax.transAxes, 
+               ha='center', va='center', fontsize=9,
+               bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
+    
+    ax.text(0, -0.25, f"White = Missing Data (-1000)\n{missingCount}/{totalCount} points missing ({missingCount/totalCount*100:.1f}%)", 
+           transform=ax.transAxes, ha='center', va='center', fontsize=8,
+           style='italic', color='gray')
     
     plt.tight_layout()
     return fig
 
-def createCompositeMap(blocks, cmap=None, norm=None, figsize=(15, 5)):
+def createCompositeMap(blocks, titles=None, cmap=None, norm=None, 
+                        thicknessValues=None, boundaries=None, figsize=(15, 5)):
+    if titles is None:
+        titles = [f"Map {i+1}" for i in range(len(blocks))]
+    
     nBlocks = len(blocks)
     fig, axes = plt.subplots(1, nBlocks, figsize=figsize, 
                              subplot_kw={'projection': 'polar'})
@@ -152,7 +191,7 @@ def createCompositeMap(blocks, cmap=None, norm=None, figsize=(15, 5)):
     if nBlocks == 1:
         axes = [axes]
     
-    for idx, (ax, block) in enumerate(zip(axes, blocks)):
+    for idx, (ax, block, title) in enumerate(zip(axes, blocks, titles)):
         data = np.array(block)
         nRings, nMeridians = data.shape
         
@@ -169,7 +208,16 @@ def createCompositeMap(blocks, cmap=None, norm=None, figsize=(15, 5)):
         ax.grid(False)
         ax.set_yticklabels([])
         ax.set_xticklabels([])
-        ax.set_xticks([])
+        ax.set_title(title)
+        
+        validData = data[data > -900]
+        missingCount = np.sum(data <= -900)
+        
+        if len(validData) > 0:
+            infoText = f"{nRings} rings\n{nMeridians} meridians\n{missingCount} missing"
+            ax.text(0, 0.5, infoText, ha='center', va='center', 
+                   transform=ax.transData._b, fontsize=8, color='gray', 
+                   bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.7))
     
     plt.tight_layout()
     return fig
@@ -194,70 +242,47 @@ def visualizeCorneaFile(filename, savePlots=False):
         totalCount = data.size
         validPercent = validCount / totalCount * 100
         missingPercent = missingCount / totalCount * 100
-
+        
+        print(f"\nBlock {i+1}:")
+        print(f"Shape: {data.shape[0]} rings × {data.shape[1]} meridians")
+        print(f"Valid data points: {validCount}/{totalCount} ({validPercent:.1f}%)")
+        print(f"Missing data (-1000): {missingCount}/{totalCount} ({missingPercent:.1f}%)")
+        
         if validCount > 0:
             validData = data[validMask]
+            print(f"Thickness range: {np.min(validData):.1f} - {np.max(validData):.1f} µm")
+            print(f"Mean thickness: {np.mean(validData):.1f} µm")
+            
+            print(f"Sample color mapping (first 5 valid values):")
             validIndices = np.where(validMask.flatten())[0][:5]
             validValues = data.flatten()[validIndices]
             for val in validValues:
                 idx = getClosestColorIndex(val, thicknessValues)
                 print(f"    {val:.1f} µm -> {colors[idx]} (closest to {thicknessValues[idx]} µm)")
-
+    
+    
     for i, block in enumerate(blocks):
         data = np.array(block)
         if np.any(data > -900):
-            fig = createCircularMap(block, cmap=cmap, norm=norm)
+            fig = createCircularMap(block, 
+                                     title=f"Corneal Thickness Map - Block {i+1}",
+                                     cmap=cmap, norm=norm, 
+                                     thicknessValues=thicknessValues,
+                                     boundaries=boundaries)
             plt.show()
             
             if savePlots:
-                fig.savefig(f"corneaImg.png", dpi=150, bbox_inches='tight')
+                fig.savefig(f"cornea_map_block_{i+1}.png", dpi=150, bbox_inches='tight')
     
     if len(blocks) > 1:
-        fig = createCompositeMap(blocks, cmap=cmap, norm=norm)
+        titles = [f"Block {i+1}\n({block[0].shape[0]} rings)" for i, block in enumerate(blocks)]
+        fig = createCompositeMap(blocks, titles, cmap=cmap, norm=norm, 
+                                  thicknessValues=thicknessValues, boundaries=boundaries)
         plt.show()
         
         if savePlots:
-            fig.savefig("corneaImg.png", dpi=150, bbox_inches='tight')
+            fig.savefig("cornea_map_composite.png", dpi=150, bbox_inches='tight')
 
-
-def rotateImage(filename="corneaImg.png", output="rotatedImg.png"):
-    image = cv2.imread(filename)
-    if image is None:
-        return
-    
-    height, width = image.shape[:2]
-    center = (width // 2, height // 2)
-    angle = 90
-    scale = 1.0
-    
-    getRotationMat = cv2.getRotationMatrix2D(center, angle, scale)
-    
-    cos = abs(getRotationMat[0, 0])
-    sin = abs(getRotationMat[0, 1])
-    nwidth = int((height * sin) + (width * cos))
-    nheight = int((height * cos) + (width * sin))
-    
-    getRotationMat[0, 2] += (nwidth / 2) - center[0]
-    getRotationMat[1, 2] += (nheight / 2) - center[1]
-    
-    rotImage = cv2.warpAffine(image, getRotationMat, (nwidth, nheight))
-    
-    reversedImg = cv2.flip(rotImage, 1)
-    
-    cv2.imwrite(output, reversedImg)
-    
-
-if __name__ == "__main__":    
-    filename = "data.csv"
-    
-    if len(sys.argv) > 1:
-        filename = sys.argv[1]
-    
-    if not os.path.exists(filename):
-        dataFiles = [f for f in os.listdir('.') if f.endswith(('.txt', '.csv'))]
-        if dataFiles:
-            for f in dataFiles:
-                print(f"  {f}")
-    else:
-        visualizeCorneaFile(filename, savePlots=True)
-        rotateImage()
+if __name__ == "__main__":
+    filename = "data_transformed.csv"    
+    visualizeCorneaFile(filename, savePlots=True)

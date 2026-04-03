@@ -87,3 +87,41 @@ class VideoPipeline:
                 self.saveMaskJson(barMask, self.barDir, f"segmentedBar_{idx}.json")
 
         print(f"segmented {len(fnames)} frames")
+
+    def computeIntersections(self):
+            intersectionMasks = {}
+
+            for idx in self.corneaMasks:
+                if idx not in self.barMasks:
+                    print(f"there is no matching bar file for frame {idx}!!!!")
+                    continue
+
+                intersection = np.logical_and(self.corneaMasks[idx], self.barMasks[idx]).astype(np.uint8)
+                intersectionMasks[idx] = intersection
+                self.saveMaskJson(intersection, self.intersectionDir, f"intersection_{idx}.json")
+
+            self.intersectionMasks = intersectionMasks
+
+    def computeHorizontalDistance(self):
+        disDir = os.path.join(os.path.dirname(self.intersectionDir), "horizontalDis")
+        os.makedirs(disDir, exist_ok=True)
+        maxDis = 0
+
+        for idx, mask in self.intersectionMasks.items():
+            distances = []
+            for row in range(mask.shape[0]):
+                cols = np.where(mask[row] == 1)[0]
+                if len(cols) == 0:
+                    continue
+                dis = int(cols[-1] - cols[0])
+                if dis > 0:
+                    distances.append(dis)
+                    if dis > maxDis:
+                        maxDis = dis
+
+            outputPath = os.path.join(disDir, f"horizontalDis{idx}.json")
+            with open(outputPath, "w") as f:
+                json.dump({"distances": distances}, f)
+
+        print(f"the maximum horizontal dis across all masks: {maxDis} px")
+

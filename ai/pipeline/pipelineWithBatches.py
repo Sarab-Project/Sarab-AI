@@ -125,3 +125,35 @@ class VideoPipeline:
 
         print(f"the maximum horizontal dis across all masks: {maxDis} px")
 
+    def saveMaskJson(self, mask, folder, filename):
+        coords = np.argwhere(mask == 1).tolist()
+        with open(os.path.join(folder, filename), "w") as f:
+            json.dump({"coordinates": coords}, f)
+
+    def loadMaskJson(self, path):
+        with open(path) as f:
+            data = json.load(f)
+        coords = data["coordinates"]
+        if not coords:
+            return np.zeros((1, 1), dtype=np.uint8)
+
+        coords = np.array(coords)
+        h, w = coords[:, 0].max() + 1, coords[:, 1].max() + 1
+        mask = np.zeros((h, w), dtype=np.uint8)
+        mask[coords[:, 0], coords[:, 1]] = 1
+        return mask
+
+
+if __name__ == "__main__":
+    pipeline = VideoPipeline(
+        videoPath="vids/s1.mp4",
+        outputDir="output"
+    )
+
+    pipeline.extractFrames()
+    pipeline.runSegmentation(modelPath={
+        "cornea": "models/best_segformer_b0_cornea",
+        "bar": "models/best_segformer_b0_bar"
+    })
+    pipeline.computeIntersections()
+    pipeline.computeHorizontalDistance()

@@ -89,18 +89,24 @@ class VideoPipeline:
         print(f"segmented {len(fnames)} frames")
 
     def computeIntersections(self):
-            intersectionMasks = {}
+        intersectionMasks = {}
 
-            for idx in self.corneaMasks:
-                if idx not in self.barMasks:
-                    print(f"there is no matching bar file for frame {idx}!!!!")
-                    continue
+        for idx in self.corneaMasks:
+            if idx not in self.barMasks:
+                print(f"there is no matching bar file for frame {idx}!!!!")
+                continue
 
-                intersection = np.logical_and(self.corneaMasks[idx], self.barMasks[idx]).astype(np.uint8)
-                intersectionMasks[idx] = intersection
-                self.saveMaskJson(intersection, self.intersectionDir, f"intersection_{idx}.json")
+            corneaMask = self.corneaMasks[idx]
+            barMask = self.barMasks[idx]
 
-            self.intersectionMasks = intersectionMasks
+            if corneaMask.shape != barMask.shape:
+                barMask = cv2.resize(barMask, (corneaMask.shape[1], corneaMask.shape[0]), interpolation=cv2.INTER_NEAREST)
+
+            intersection = np.logical_and(corneaMask, barMask).astype(np.uint8)
+            intersectionMasks[idx] = intersection
+            self.saveMaskJson(intersection, self.intersectionDir, f"intersection_{idx}.json")
+
+        self.intersectionMasks = intersectionMasks
 
     def computeHorizontalDistance(self):
         disDir = os.path.join(os.path.dirname(self.intersectionDir), "horizontalDis")
@@ -143,7 +149,6 @@ class VideoPipeline:
         mask[coords[:, 0], coords[:, 1]] = 1
         return mask
 
-
 if __name__ == "__main__":
     pipeline = VideoPipeline(
         videoPath="vids/s1.mp4",
@@ -153,7 +158,7 @@ if __name__ == "__main__":
     pipeline.extractFrames()
     pipeline.runSegmentation(modelPath={
         "cornea": "models/best_segformer_b0_cornea",
-        "bar": "models/best_segformer_b0_bar"
+        "bar": "models/best_segformer_b0_lightbar"
     })
     pipeline.computeIntersections()
     pipeline.computeHorizontalDistance()

@@ -13,11 +13,10 @@ import {
   View
 } from 'react-native';
 
-// استيراد الثوابت والمكونات والـ Hooks المخصصة
 import { ActionButtons } from '../../components/home/actionButtons';
 import { CameraModal } from '../../components/home/cameraModal';
 import { VideoCard } from '../../components/home/videoCard';
-import { DarkTheme, LightTheme } from '../../constants/theme'; // استيراد الثيمين
+import { DarkTheme, LightTheme } from '../../constants/theme'; 
 import { useVideoManager } from '../../hooks/useVideoManager';
 import { useUserStore } from '../../store/useUserStore';
 
@@ -30,9 +29,8 @@ const VIDEO_CARD_WIDTH = ACTUAL_AVAILABLE_WIDTH;
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation(); 
-  const { userName, userImage, theme } = useUserStore(); // جلب الثيم من الـ Store
+  const { userName, userImage, theme } = useUserStore(); 
 
-  // اختيار الألوان النشطة بناءً على الثيم
   const Colors = theme === 'dark' ? DarkTheme : LightTheme;
 
   const { videos, addVideo, pickVideoFile, removeVideo } = useVideoManager(2);
@@ -46,14 +44,12 @@ export default function HomeScreen() {
     });
   };
 
-  // تمرير الألوان الديناميكية للأنماط
   const dynamicStyles = createStyles(Colors);
 
   return (
     <View style={dynamicStyles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         
-        {/* Header Section */}
         <View style={dynamicStyles.header}>
           <View style={dynamicStyles.profileSection}>
             <TouchableOpacity onPress={() => router.push('/profile')}>
@@ -77,7 +73,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Action Buttons */}
         <ActionButtons 
           onCameraPress={() => setCameraOpen(true)} 
           onUploadPress={pickVideoFile} 
@@ -85,10 +80,8 @@ export default function HomeScreen() {
           cameraLabel={t('home.open_camera', { count: videos.length })}
           uploadLabel={t('home.select_file', { count: videos.length })}
           orLabel={t('home.or')}
-          // ملاحظة: تأكد أن ActionButtons يستقبل Colors كـ Prop أو يستخدم الـ Store داخلياً
         />
 
-        {/* منطقة عرض الفيديوهات */}
         <View style={dynamicStyles.displayArea}>
           {videos.length > 0 ? (
             <ScrollView 
@@ -124,7 +117,6 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Analysis Section */}
         <View style={dynamicStyles.analysisSection}>
             <TouchableOpacity 
               style={[dynamicStyles.brainIconContainer, videos.length < 2 && dynamicStyles.disabledBrain]} 
@@ -150,11 +142,10 @@ export default function HomeScreen() {
   );
 }
 
-// دالة لإنشاء الأنماط بناءً على الألوان الممرة
 const createStyles = (Colors: any) => StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: Colors.background, // يتغير حسب الثيم
+    backgroundColor: Colors.background, 
     paddingHorizontal: 25, 
     paddingTop: Platform.OS === 'ios' ? 60 : 40, 
   },

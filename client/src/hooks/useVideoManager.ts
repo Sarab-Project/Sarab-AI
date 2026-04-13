@@ -1,4 +1,3 @@
-// hooks/useVideoManager.ts
 import * as DocumentPicker from 'expo-document-picker';
 import { useState } from 'react';
 import { Alert } from 'react-native';

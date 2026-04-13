@@ -3,7 +3,6 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/colors';
 
 export const SarabLogo = () => (
-  // أزلنا ستايل logoFixedSection من هنا ليكون المكون مرناً
   <View style={styles.logoContainer}>
     <Text style={styles.logoText}>Sarab Ai</Text>
     <View style={styles.eyeContainer}>
@@ -19,7 +18,7 @@ export const SarabLogo = () => (
 
 const styles = StyleSheet.create({
   logoContainer: {
-    alignItems: 'center', // لضمان توسيط النصوص والأيقونة داخلياً
+    alignItems: 'center', 
   },
   logoText: {
     fontSize: 52,

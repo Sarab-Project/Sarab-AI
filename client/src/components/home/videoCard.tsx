@@ -12,7 +12,6 @@ interface VideoCardProps {
 }
 
 export const VideoCard = ({ uri, index, title, onRemove, width }: VideoCardProps) => (
-  // أضفنا alignItems: 'center' للتأكد من توسيط المحتوى داخل المساحة الممررة
   <View style={[styles.card, { width: width }]}>
     <View style={styles.videoWrapper}>
         <Video 
@@ -23,12 +22,10 @@ export const VideoCard = ({ uri, index, title, onRemove, width }: VideoCardProps
           isLooping 
         />
 
-        {/* زر الحذف */}
         <TouchableOpacity style={styles.deleteBtn} onPress={() => onRemove(index)}>
           <Ionicons name="trash-outline" size={20} color="white" />
         </TouchableOpacity>
 
-        {/* شارة العنوان */}
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{title}</Text>
         </View>
@@ -43,9 +40,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   videoWrapper: {
-    width: '90%', // هذا يضمن وجود مسافة بسيطة من الجوانب لكي لا يلتصق الفيديو بحواف الشاشة
+    width: '90%', 
     height: '100%',
-    borderRadius: 20, // إعادة الحواف بشكل آمن داخل الحاوية
+    borderRadius: 20, 
     overflow: 'hidden',
     backgroundColor: '#000',
   },

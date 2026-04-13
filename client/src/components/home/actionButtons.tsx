@@ -7,8 +7,8 @@ interface ActionButtonsProps {
   onCameraPress: () => void;
   onUploadPress: () => void;
   count: number;
-  cameraLabel: string; // سيحتوي الآن على النص والعداد معاً
-  uploadLabel: string; // سيحتوي الآن على النص والعداد معاً
+  cameraLabel: string; 
+  uploadLabel: string; 
   orLabel: string;
 }
 
@@ -24,7 +24,6 @@ export const ActionButtons = ({
 
   return (
     <View style={styles.actionContainer}>
-      {/* زر الكاميرا */}
       <TouchableOpacity 
         style={[styles.inputBox, isDisabled && styles.disabledBox]} 
         onPress={onCameraPress}
@@ -36,10 +35,8 @@ export const ActionButtons = ({
         <Ionicons name="camera-outline" size={24} color={Colors.primary} />
       </TouchableOpacity>
       
-      {/* نص "أو" */}
       <Text style={styles.orText}>{orLabel}</Text>
       
-      {/* زر اختيار الملف */}
       <TouchableOpacity 
         style={[styles.inputBox, isDisabled && styles.disabledBox]} 
         onPress={onUploadPress}

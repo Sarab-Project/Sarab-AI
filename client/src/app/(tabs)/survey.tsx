@@ -17,7 +17,7 @@ import {
 import { FormInput } from '../../components/survey/formInput';
 import { Colors } from '../../constants/colors';
 import { useSurveyForm } from '../../hooks/useSurveyForm';
-import { useVideoManager } from '../../hooks/useVideoManager'; // إعادة استخدام الـ Hook السابق
+import { useVideoManager } from '../../hooks/useVideoManager'; 
 
 export default function SurveyScreen() {
   const router = useRouter();
@@ -26,7 +26,6 @@ export default function SurveyScreen() {
   const { form, updateField, isFormValid } = useSurveyForm();
   const { videos, addVideo, removeVideo } = useVideoManager(2);
 
-  // استقبال الفيديوهات القادمة من الصفحة الرئيسية
   useEffect(() => {
     if (params.videoUris) {
       try {
@@ -49,7 +48,6 @@ export default function SurveyScreen() {
       return;
     }
 
-    // هنا يتم استدعاء الـ API مستقبلاً
     console.log("SURVEY DATA:", { ...form, videos });
     
     Alert.alert("حالة المنصة", "جاري رفع العينات للتحليل...", [
@@ -76,7 +74,6 @@ export default function SurveyScreen() {
           <View style={styles.formContainer}>
             <Text style={styles.sectionTitle}>Samples ({videos.length}/2)</Text>
             
-            {/* عرض الفيديوهات المضافة */}
             {videos.map((uri, index) => (
               <View key={index} style={styles.fileCard}>
                 <View style={styles.fileInfo}>
@@ -91,7 +88,6 @@ export default function SurveyScreen() {
 
             <View style={styles.divider} />
 
-            {/* الحقول المعتمدة على الـ Hook */}
             <FormInput placeholder="Eye side" value={form.eye_side} onChangeText={(v: string) => updateField('eye_side', v)} />
             
             <View style={styles.row}>

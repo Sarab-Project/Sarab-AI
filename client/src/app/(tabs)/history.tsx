@@ -4,7 +4,6 @@ import { HistoryItem } from '../../components/history/historyItem';
 
 export default function HistoryScreen() {
   
-  // دالة توليد الوقت (يمكنك لاحقاً نقلها لملف utils إذا تكررت)
   const getCurrentDateTime = () => {
     const now = new Date();
     const date = now.toISOString().split('T')[0];
@@ -23,7 +22,6 @@ export default function HistoryScreen() {
   }));
 
   const handleItemPress = (id: string) => {
-    // الوظيفة التي ستتركها لاحقاً (مثلاً الانتقال لصفحة التفاصيل)
     console.log("Pressed item with ID:", id);
   };
 

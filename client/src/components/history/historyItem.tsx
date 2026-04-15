@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e1d7f5', // تفتيح الحدود قليلاً لإعطاء عمق
+    borderColor: '#e1d7f5', 
   },
   infoColumn: {
     flex: 1,

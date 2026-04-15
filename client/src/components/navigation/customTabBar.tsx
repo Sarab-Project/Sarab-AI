@@ -3,7 +3,6 @@ import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/colors';
 
-// وضع الأيقونات خارج المكون لمنع إعادة تعريفها في كل رندر
 const TAB_ICONS: any = {
   'index': { active: 'home', inactive: 'home-outline' },
   'survey': { active: 'cloud-upload', inactive: 'cloud-upload-outline' },
@@ -52,12 +51,12 @@ const styles = StyleSheet.create({
   tabBarContainer: {
     flexDirection: 'row',
     position: 'absolute',
-    bottom: 25, // رفعناه قليلاً ليعطي شكلاً عائماً (Floating) أفضل
+    bottom: 25, 
     left: 20,
     right: 20,
     backgroundColor: Colors.primary || '#b39ddb',
     borderRadius: 35,
-    height: 65, // زيادة الارتفاع لراحة اليد
+    height: 65, 
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },

@@ -12,8 +12,8 @@ export default function TabLayout() {
       tabBarPosition="bottom"
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
-        swipeEnabled: true, // ميزة رائعة في TopTabs
-        lazy: true, // لتحميل الشاشات عند الحاجة فقط وتحسين الأداء
+        swipeEnabled: true, 
+        lazy: true, 
       }}
     >
       <MaterialTopTabs.Screen name="index" options={{ title: 'Home' }} />

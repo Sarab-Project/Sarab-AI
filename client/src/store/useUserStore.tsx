@@ -28,9 +28,7 @@ export const useUserStore = create<UserState>()(
       theme: 'light',
       isLoggedIn: false,
 
-      // التعديل هنا: نستخدم المبدأ الصحيح لتحديث الحالة دون حذف القديم
       setUser: (data) => set((state) => {
-        // نقوم بإنشاء نسخة من الحالة الحالية أولاً
         const newState = { ...state, isLoggedIn: true };
 
         if (data.token !== undefined) newState.token = data.token;
@@ -42,7 +40,7 @@ export const useUserStore = create<UserState>()(
           i18n.changeLanguage(data.language);
         }
 
-        return newState; // نعيد الكائن الكامل الجديد
+        return newState; 
       }),
 
       setLanguage: (lang) => {

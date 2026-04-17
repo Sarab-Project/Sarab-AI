@@ -31,7 +31,7 @@ class VideoPipeline:
             fpath = os.path.join(outputDir, fname)
             if os.path.exists(fpath):
                 os.remove(fpath)
-    
+
     def extractFrames(self):
         cap = cv2.VideoCapture(self.videoPath)
         count = 1
@@ -106,6 +106,50 @@ class VideoPipeline:
                     json.dump({"coordinates": coords}, f)
 
         print(f"segmented {len(fnames)} frames")
+
+    def computeHeatmap(self):
+        allRows = []
+
+        maskFiles = sorted(
+            [f for f in os.listdir(self.barMasksDir) if f.startswith("barMask_") and "_x_" not in f],
+            key=lambda x: int(x.replace("barMask_", "").replace(".json", ""))
+        )
+
+        for fname in maskFiles:
+            with open(os.path.join(self.barMasksDir, fname)) as f:
+                data = json.load(f)
+            coords = data["coordinates"]
+            if not coords:
+                continue
+
+            coords = np.array(coords)
+            h = coords[:, 0].max() + 1
+            rowCounts = np.zeros(h, dtype=np.float32)
+            for r in range(h):
+                rowCounts[r] = np.sum(coords[:, 0] == r)
+
+            allRows.append(rowCounts)
+
+        if not allRows:
+            print("no accepted masks found")
+            return
+
+        maxLen = max(len(r) for r in allRows)
+        padded = np.array([np.pad(r, (0, maxLen - len(r))) for r in allRows])
+
+        np.save(os.path.join(self.outputDir, "heatmapData.npy"), padded)
+
+        resized = cv2.resize(padded, (HEATMAP_W, HEATMAP_H), interpolation=cv2.INTER_LINEAR)
+
+        smoothed = gaussian_filter(resized, sigma=(5, 9))
+
+        normed = smoothed / (smoothed.max() + 1e-8)
+        colormap = plt.get_cmap("jet")
+        heatmapImg = (colormap(normed)[:, :, :3] * 255).astype(np.uint8)
+        heatmapImg = cv2.cvtColor(heatmapImg, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(os.path.join(self.outputDir, "heatmap.png"), heatmapImg)
+
+        print(f"heatmap saved: {padded.shape[0]} accepted frames x {padded.shape[1]} rows → resized to {HEATMAP_W}x{HEATMAP_H}")
 
 
 if __name__ == "__main__":

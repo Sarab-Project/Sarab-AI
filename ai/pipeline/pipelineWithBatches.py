@@ -107,66 +107,6 @@ class VideoPipeline:
 
         print(f"segmented {len(fnames)} frames")
 
-    def computeIntersections(self):
-        intersectionMasks = {}
-
-        for idx in self.corneaMasks:
-            if idx not in self.barMasks:
-                print(f"there is no matching bar file for frame {idx}!!!!")
-                continue
-
-            corneaMask = self.corneaMasks[idx]
-            barMask = self.barMasks[idx]
-
-            if corneaMask.shape != barMask.shape:
-                barMask = cv2.resize(barMask, (corneaMask.shape[1], corneaMask.shape[0]), interpolation=cv2.INTER_NEAREST)
-
-            intersection = np.logical_and(corneaMask, barMask).astype(np.uint8)
-            intersectionMasks[idx] = intersection
-            self.saveMaskJson(intersection, self.intersectionDir, f"intersection_{idx}.json")
-
-        self.intersectionMasks = intersectionMasks
-
-    def computeHorizontalDistance(self):
-        disDir = os.path.join(os.path.dirname(self.intersectionDir), "horizontalDis")
-        os.makedirs(disDir, exist_ok=True)
-        maxDis = 0
-
-        for idx, mask in self.intersectionMasks.items():
-            distances = []
-            for row in range(mask.shape[0]):
-                cols = np.where(mask[row] == 1)[0]
-                if len(cols) == 0:
-                    continue
-                dis = int(cols[-1] - cols[0])
-                if dis > 0:
-                    distances.append(dis)
-                    if dis > maxDis:
-                        maxDis = dis
-
-            outputPath = os.path.join(disDir, f"horizontalDis{idx}.json")
-            with open(outputPath, "w") as f:
-                json.dump({"distances": distances}, f)
-
-        print(f"the maximum horizontal dis across all masks: {maxDis} px")
-
-    def saveMaskJson(self, mask, folder, filename):
-        coords = np.argwhere(mask == 1).tolist()
-        with open(os.path.join(folder, filename), "w") as f:
-            json.dump({"coordinates": coords}, f)
-
-    def loadMaskJson(self, path):
-        with open(path) as f:
-            data = json.load(f)
-        coords = data["coordinates"]
-        if not coords:
-            return np.zeros((1, 1), dtype=np.uint8)
-
-        coords = np.array(coords)
-        h, w = coords[:, 0].max() + 1, coords[:, 1].max() + 1
-        mask = np.zeros((h, w), dtype=np.uint8)
-        mask[coords[:, 0], coords[:, 1]] = 1
-        return mask
 
 if __name__ == "__main__":
     pipeline = VideoPipeline(

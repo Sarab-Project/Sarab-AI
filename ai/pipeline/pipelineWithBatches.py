@@ -39,16 +39,14 @@ class VideoPipeline:
             ret, frame = cap.read()
             if not ret:
                 break
-            cv2.imwrite(os.path.join(self.framesDir, f"img_{count}.jpg"), frame)
+            cv2.imwrite(os.path.join(self.framesDir, f"barFrame_{count}.jpg"), frame)
             count += 1
         cap.release()
-        print(f"extracted {count-1} frames")
+        print(f"extracted {count - 1} frames")
 
     def runSegmentation(self, modelPath, threshold=0.5, imgSize=512, batchSize=8):
-        corneaModel = SegformerForSemanticSegmentation.from_pretrained(modelPath["cornea"])
-        corneaModel.to(self.device).eval()
-        barModel = SegformerForSemanticSegmentation.from_pretrained(modelPath["bar"])
-        barModel.to(self.device).eval()
+        model = SegformerForSemanticSegmentation.from_pretrained(modelPath)
+        model.to(self.device).eval()
 
         transform = A.Compose([
             A.Resize(imgSize, imgSize),
@@ -56,7 +54,8 @@ class VideoPipeline:
             ToTensorV2(),
         ])
 
-        fnames = sorted(os.listdir(self.framesDir))
+        fnames = sorted(os.listdir(self.framesDir), key=lambda x: int(x.split("_")[1].split(".")[0]))
+        prevCenterX = None
 
         for batchStart in range(0, len(fnames), batchSize):
             batchFiles = fnames[batchStart:batchStart + batchSize]
@@ -72,29 +71,39 @@ class VideoPipeline:
             batch = torch.stack(tensors).to(self.device)
 
             with torch.no_grad():
-                corneaLogits = corneaModel(pixel_values=batch).logits
-                if corneaLogits.shape[1] > 1:
-                    corneaLogits = corneaLogits[:, 1:2]
-                corneaProbs = torch.sigmoid(corneaLogits).cpu().numpy()
-
-                barLogits = barModel(pixel_values=batch).logits
-                if barLogits.shape[1] > 1:
-                    barLogits = barLogits[:, 1:2]
-                barProbs = torch.sigmoid(barLogits).cpu().numpy()
+                logits = model(pixel_values=batch).logits
+                if logits.shape[1] > 1:
+                    logits = logits[:, 1:2]
+                probs = torch.sigmoid(logits).cpu().numpy()
 
             for i, fname in enumerate(batchFiles):
-                idx = os.path.splitext(fname)[0].split("_")[1]
+                idx = fname.split("_")[1].split(".")[0]
                 h, w = origSizes[i]
 
-                corneaMask = (corneaProbs[i, 0] > threshold).astype(np.uint8)
-                corneaMask = cv2.resize(corneaMask, (w, h), interpolation=cv2.INTER_NEAREST)
-                self.corneaMasks[idx] = corneaMask
-                self.saveMaskJson(corneaMask, self.corneaDir, f"segmentedCornea_{idx}.json")
-
-                barMask = (barProbs[i, 0] > threshold).astype(np.uint8)
+                barMask = (probs[i, 0] > threshold).astype(np.uint8)
                 barMask = cv2.resize(barMask, (w, h), interpolation=cv2.INTER_NEAREST)
-                self.barMasks[idx] = barMask
-                self.saveMaskJson(barMask, self.barDir, f"segmentedBar_{idx}.json")
+
+                cols = np.where(barMask == 1)[1]
+                currentCenterX = int(cols.mean()) if len(cols) > 0 else None
+
+                rejected = False
+                if currentCenterX is not None and prevCenterX is not None:
+                    if self.direction == "right" and currentCenterX <= prevCenterX:
+                        rejected = True
+                    elif self.direction == "left" and currentCenterX >= prevCenterX:
+                        rejected = True
+
+                if not rejected and currentCenterX is not None:
+                    prevCenterX = currentCenterX
+
+                coords = np.argwhere(barMask == 1).tolist()
+                if rejected:
+                    savePath = os.path.join(self.barMasksDir, f"barMask_x_{idx}.json")
+                else:
+                    savePath = os.path.join(self.barMasksDir, f"barMask_{idx}.json")
+
+                with open(savePath, "w") as f:
+                    json.dump({"coordinates": coords}, f)
 
         print(f"segmented {len(fnames)} frames")
 

@@ -152,16 +152,12 @@ class VideoPipeline:
         print(f"heatmap saved: {padded.shape[0]} accepted frames x {padded.shape[1]} rows → resized to {HEATMAP_W}x{HEATMAP_H}")
 
 
-if __name__ == "__main__":
-    pipeline = VideoPipeline(
-        videoPath="vids/s1.mp4",
-        outputDir="output"
-    )
+pipeline = VideoPipeline(
+    videoPath="vids/lr(2).MOV",
+    direction="right",
+    outputDir="output"
+)
 
-    pipeline.extractFrames()
-    pipeline.runSegmentation(modelPath={
-        "cornea": "models/best_segformer_b0_cornea",
-        "bar": "models/best_segformer_b0_lightbar"
-    })
-    pipeline.computeIntersections()
-    pipeline.computeHorizontalDistance()
+pipeline.extractFrames()
+pipeline.runSegmentation(modelPath="models/best_segformer_b0_lightbar")
+pipeline.computeHeatmap()

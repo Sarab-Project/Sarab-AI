@@ -1,26 +1,36 @@
 import os
+import shutil
 import cv2
 import json
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter
 from transformers import SegformerForSemanticSegmentation
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
+HEATMAP_W = 1024
+HEATMAP_H = 512
 
 class VideoPipeline:
-    def __init__(self, videoPath, outputDir="output"):
+    def __init__(self, videoPath, direction, outputDir="output"):
         self.videoPath = videoPath
+        self.direction = direction
         self.framesDir = os.path.join(outputDir, "frames")
-        self.corneaDir = os.path.join(outputDir, "segmentedCornea")
-        self.barDir = os.path.join(outputDir, "segmentedBar")
-        self.intersectionDir = os.path.join(outputDir, "intersection")
+        self.barMasksDir = os.path.join(outputDir, "barMasks")
+        self.outputDir = outputDir
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.corneaMasks = {}
-        self.barMasks = {}
 
-        for d in [self.framesDir, self.corneaDir, self.barDir, self.intersectionDir]:
-            os.makedirs(d, exist_ok=True)
+        for d in [self.framesDir, self.barMasksDir]:
+            if os.path.exists(d):
+                shutil.rmtree(d)
+            os.makedirs(d)
+
+        for fname in ["heatmapData.npy", "heatmap.png"]:
+            fpath = os.path.join(outputDir, fname)
+            if os.path.exists(fpath):
+                os.remove(fpath)
     
     def extractFrames(self):
         cap = cv2.VideoCapture(self.videoPath)

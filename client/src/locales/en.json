@@ -1,0 +1,13 @@
+{
+  "home": {
+    "welcome": "Hi, Welcome Back",
+    "open_camera": "Open Camera ({{count}}/2)",
+    "select_file": "Select File ({{count}}/2)",
+    "or": "OR",
+    "add_samples": "Please add two video samples",
+    "waiting_second_video":"waiting seconde video",
+    "sample_1": "Sample 1",
+    "sample_2": "Sample 2",
+    "start_analysis": "Start Analysis"
+  }
+}

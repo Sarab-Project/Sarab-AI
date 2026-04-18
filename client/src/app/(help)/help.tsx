@@ -11,10 +11,8 @@ import {
   View,
 } from 'react-native';
 
-// استيراد الثوابت الموحدة
 import { Colors } from '../../constants/theme';
 
-// --- المكون الفرعي للخيار (لتحقيق مبدأ المسؤولية الواحدة) ---
 const ContactOption = ({ item, isOpen, onPress }: { item: any, isOpen: boolean, onPress: () => void }) => {
   return (
     <View style={styles.optionWrapper}>
@@ -40,7 +38,6 @@ const ContactOption = ({ item, isOpen, onPress }: { item: any, isOpen: boolean, 
         />
       </TouchableOpacity>
       
-      {/* محتوى الـ Accordion عند الفتح */}
       {isOpen && (
         <View style={styles.accordionContent}>
           <Text style={styles.accordionText}>
@@ -52,7 +49,6 @@ const ContactOption = ({ item, isOpen, onPress }: { item: any, isOpen: boolean, 
   );
 };
 
-// --- الشاشة الرئيسية ---
 export default function HelpCenterScreen() {
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -70,7 +66,6 @@ export default function HelpCenterScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header بنمط المشروع الموحد */}
       <View style={styles.purpleHeader}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -85,12 +80,10 @@ export default function HelpCenterScreen() {
         contentContainerStyle={styles.content} 
         showsVerticalScrollIndicator={false}
       >
-        {/* زر التواصل الرئيسي */}
         <TouchableOpacity style={styles.contactUsButton} activeOpacity={0.8}>
           <Text style={styles.contactUsText}>Contact Us</Text>
         </TouchableOpacity>
 
-        {/* عرض الخيارات باستخدام المكون الفرعي */}
         {contactOptions.map((item) => (
           <ContactOption 
             key={item.id} 
@@ -107,13 +100,12 @@ export default function HelpCenterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   
-  // Header Styles
   purpleHeader: {
     backgroundColor: Colors.primary || '#b39ddb',
     paddingTop: Platform.OS === 'android' ? 50 : 20,
     paddingBottom: 40,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 30, // إضافة لمسة جمالية تتناسب مع باقي التطبيق
+    borderBottomLeftRadius: 30, 
     borderBottomRightRadius: 30,
   },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 60 },
@@ -128,7 +120,6 @@ const styles = StyleSheet.create({
 
   content: { paddingHorizontal: 25, paddingTop: 30, paddingBottom: 50 },
   
-  // Contact Us Button
   contactUsButton: {
     backgroundColor: Colors.primary || '#b39ddb',
     borderRadius: 25,
@@ -145,7 +136,6 @@ const styles = StyleSheet.create({
   },
   contactUsText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 
-  // Accordion Styles
   optionWrapper: {
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
@@ -170,7 +160,7 @@ const styles = StyleSheet.create({
   optionText: { fontSize: 16, fontWeight: '600', color: '#333' },
   
   accordionContent: {
-    paddingLeft: 59, // محاذاة النص مع بداية نص العنوان
+    paddingLeft: 59, 
     paddingBottom: 15,
     paddingRight: 10,
   },

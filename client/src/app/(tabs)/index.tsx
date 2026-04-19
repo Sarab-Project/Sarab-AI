@@ -48,7 +48,7 @@ export default function HomeScreen() {
 
   return (
     <View style={dynamicStyles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}>
         
         <View style={dynamicStyles.header}>
           <View style={dynamicStyles.profileSection}>

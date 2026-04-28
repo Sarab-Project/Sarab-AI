@@ -2,6 +2,7 @@ import os
 import shutil
 import cv2
 import json
+import random
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -106,6 +107,52 @@ class VideoPipeline:
                     json.dump({"coordinates": coords}, f)
 
         print(f"segmented {len(fnames)} frames")
+
+    def validateFrames(self, modelPath, numSamples=3, imgSize=512):
+        fnames = sorted(
+            os.listdir(self.framesDir),
+            key=lambda x: int(x.split("_")[1].split(".")[0])
+        )
+        if len(fnames) == 0:
+            print("no frames found")
+            return False
+
+        samples = random.sample(fnames, min(numSamples, len(fnames)))
+
+        model = SegformerForSemanticSegmentation.from_pretrained(modelPath)
+        model.to(self.device).eval()
+
+        transform = A.Compose([
+            A.Resize(imgSize, imgSize),
+            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ToTensorV2(),
+        ])
+
+        anyMaskFound = False
+        for fname in samples:
+            imgBGR = cv2.imread(os.path.join(self.framesDir, fname))
+            imgRGB = cv2.cvtColor(imgBGR, cv2.COLOR_BGR2RGB)
+            tensor = transform(image=imgRGB)["image"].unsqueeze(0).to(self.device)
+
+            with torch.no_grad():
+                logits = model(pixel_values=tensor).logits
+                if logits.shape[1] > 1:
+                    logits = logits[:, 1:2]
+                prob = torch.sigmoid(logits).cpu().numpy()[0, 0]
+
+            mask = (prob > 0.5).astype(np.uint8)
+            if mask.sum() > 0:
+                anyMaskFound = True
+                print(f"mask found in sample {fname}")
+            else:
+                print(f"no mask in sample {fname}")
+
+        if not anyMaskFound:
+            print("none of the sampled frames produced a mask — pipeline stopped")
+            return False
+
+        print("validation passed")
+        return True
 
     def computeGrayHist(self, imgBGR):
         gray = cv2.cvtColor(imgBGR, cv2.COLOR_BGR2GRAY)

@@ -58,6 +58,90 @@ class VideoPipeline:
         fnames = sorted(os.listdir(self.framesDir), key=lambda x: int(x.split("_")[1].split(".")[0]))
         prevCenterX = None
 
+        meanHist = None
+        meanHistCount = 0
+
+        for batchStart in range(0, len(fnames), batchSize):
+            batchFiles = fnames[batchStart:batchStart + batchSize]
+            origSizes = []
+            tensors = []
+            rawImgs = []
+
+            for fname in batchFiles:
+                imgBGR = cv2.imread(os.path.join(self.framesDir, fname))
+                imgRGB = cv2.cvtColor(imgBGR, cv2.COLOR_BGR2RGB)
+                origSizes.append(imgBGR.shape[:2])
+                tensors.append(transform(image=imgRGB)["image"])
+                rawImgs.append(imgBGR)
+
+            batch = torch.stack(tensors).to(self.device)
+
+            with torch.no_grad():
+                logits = model(pixel_values=batch).logits
+                if logits.shape[1] > 1:
+                    logits = logits[:, 1:2]
+                probs = torch.sigmoid(logits).cpu().numpy()
+
+            for i, fname in enumerate(batchFiles):
+                idx = fname.split("_")[1].split(".")[0]
+                h, w = origSizes[i]
+                imgBGR = rawImgs[i]
+
+                frameHist = self.computeGrayHist(imgBGR)
+
+                if meanHist is None:
+                    meanHist = frameHist.copy()
+                    meanHistCount = 1
+                    lightingRejected = False
+                else:
+                    dist = cv2.compareHist(meanHist, frameHist, cv2.HISTCMP_BHATTACHARYYA)
+                    if dist > Threshold:
+                        lightingRejected = True
+                    else:
+                        lightingRejected = False
+                        meanHist = (meanHist * meanHistCount + frameHist) / (meanHistCount + 1)
+                        meanHistCount += 1
+
+                barMask = (probs[i, 0] > threshold).astype(np.uint8)
+                barMask = cv2.resize(barMask, (w, h), interpolation=cv2.INTER_NEAREST)
+
+                cols = np.where(barMask == 1)[1]
+                currentCenterX = int(cols.mean()) if len(cols) > 0 else None
+
+                directionRejected = False
+                if currentCenterX is not None and prevCenterX is not None:
+                    if self.direction == "right" and currentCenterX <= prevCenterX:
+                        directionRejected = True
+                    elif self.direction == "left" and currentCenterX >= prevCenterX:
+                        directionRejected = True
+
+                if not directionRejected and currentCenterX is not None:
+                    prevCenterX = currentCenterX
+
+                coords = np.argwhere(barMask == 1).tolist()
+                prefix = "barMask"
+                if directionRejected:
+                    prefix += "_x"
+                if lightingRejected:
+                    prefix += "_h"
+
+                savePath = os.path.join(self.barMasksDir, f"{prefix}_{idx}.json")
+                with open(savePath, "w") as f:
+                    json.dump({"coordinates": coords}, f)
+
+        print(f"segmented {len(fnames)} frames")
+        model = SegformerForSemanticSegmentation.from_pretrained(modelPath)
+        model.to(self.device).eval()
+
+        transform = A.Compose([
+            A.Resize(imgSize, imgSize),
+            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ToTensorV2(),
+        ])
+
+        fnames = sorted(os.listdir(self.framesDir), key=lambda x: int(x.split("_")[1].split(".")[0]))
+        prevCenterX = None
+
         for batchStart in range(0, len(fnames), batchSize):
             batchFiles = fnames[batchStart:batchStart + batchSize]
             origSizes = []

@@ -107,6 +107,13 @@ class VideoPipeline:
 
         print(f"segmented {len(fnames)} frames")
 
+    def computeGrayHist(self, imgBGR):
+        gray = cv2.cvtColor(imgBGR, cv2.COLOR_BGR2GRAY)
+        hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+        cv2.normalize(hist, hist)
+        return hist
+
+
     def computeHeatmap(self):
         allRows = []
 

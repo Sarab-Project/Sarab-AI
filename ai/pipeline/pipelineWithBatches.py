@@ -13,6 +13,8 @@ from albumentations.pytorch import ToTensorV2
 
 HEATMAP_W = 1024
 HEATMAP_H = 512
+Threshold = 0.17
+
 
 class VideoPipeline:
     def __init__(self, videoPath, direction, outputDir="output"):
@@ -44,6 +46,58 @@ class VideoPipeline:
             count += 1
         cap.release()
         print(f"extracted {count - 1} frames")
+
+    def validateFrames(self, modelPath, numSamples=3, imgSize=512):
+        fnames = sorted(
+            os.listdir(self.framesDir),
+            key=lambda x: int(x.split("_")[1].split(".")[0])
+        )
+        if len(fnames) == 0:
+            print("no frames found")
+            return False
+
+        samples = random.sample(fnames, min(numSamples, len(fnames)))
+
+        model = SegformerForSemanticSegmentation.from_pretrained(modelPath)
+        model.to(self.device).eval()
+
+        transform = A.Compose([
+            A.Resize(imgSize, imgSize),
+            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ToTensorV2(),
+        ])
+
+        anyMaskFound = False
+        for fname in samples:
+            imgBGR = cv2.imread(os.path.join(self.framesDir, fname))
+            imgRGB = cv2.cvtColor(imgBGR, cv2.COLOR_BGR2RGB)
+            tensor = transform(image=imgRGB)["image"].unsqueeze(0).to(self.device)
+
+            with torch.no_grad():
+                logits = model(pixel_values=tensor).logits
+                if logits.shape[1] > 1:
+                    logits = logits[:, 1:2]
+                prob = torch.sigmoid(logits).cpu().numpy()[0, 0]
+
+            mask = (prob > 0.5).astype(np.uint8)
+            if mask.sum() > 0:
+                anyMaskFound = True
+                print(f"mask found in sample {fname}")
+            else:
+                print(f"no mask in sample {fname}")
+
+        if not anyMaskFound:
+            print("none of the sampled frames produced a mask — pipeline stopped")
+            return False
+
+        print("validation passed")
+        return True
+
+    def computeGrayHist(self, imgBGR):
+        gray = cv2.cvtColor(imgBGR, cv2.COLOR_BGR2GRAY)
+        hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+        cv2.normalize(hist, hist)
+        return hist
 
     def runSegmentation(self, modelPath, threshold=0.5, imgSize=512, batchSize=8):
         model = SegformerForSemanticSegmentation.from_pretrained(modelPath)
@@ -130,126 +184,15 @@ class VideoPipeline:
                     json.dump({"coordinates": coords}, f)
 
         print(f"segmented {len(fnames)} frames")
-        model = SegformerForSemanticSegmentation.from_pretrained(modelPath)
-        model.to(self.device).eval()
-
-        transform = A.Compose([
-            A.Resize(imgSize, imgSize),
-            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ToTensorV2(),
-        ])
-
-        fnames = sorted(os.listdir(self.framesDir), key=lambda x: int(x.split("_")[1].split(".")[0]))
-        prevCenterX = None
-
-        for batchStart in range(0, len(fnames), batchSize):
-            batchFiles = fnames[batchStart:batchStart + batchSize]
-            origSizes = []
-            tensors = []
-
-            for fname in batchFiles:
-                imgBGR = cv2.imread(os.path.join(self.framesDir, fname))
-                imgRGB = cv2.cvtColor(imgBGR, cv2.COLOR_BGR2RGB)
-                origSizes.append(imgBGR.shape[:2])
-                tensors.append(transform(image=imgRGB)["image"])
-
-            batch = torch.stack(tensors).to(self.device)
-
-            with torch.no_grad():
-                logits = model(pixel_values=batch).logits
-                if logits.shape[1] > 1:
-                    logits = logits[:, 1:2]
-                probs = torch.sigmoid(logits).cpu().numpy()
-
-            for i, fname in enumerate(batchFiles):
-                idx = fname.split("_")[1].split(".")[0]
-                h, w = origSizes[i]
-
-                barMask = (probs[i, 0] > threshold).astype(np.uint8)
-                barMask = cv2.resize(barMask, (w, h), interpolation=cv2.INTER_NEAREST)
-
-                cols = np.where(barMask == 1)[1]
-                currentCenterX = int(cols.mean()) if len(cols) > 0 else None
-
-                rejected = False
-                if currentCenterX is not None and prevCenterX is not None:
-                    if self.direction == "right" and currentCenterX <= prevCenterX:
-                        rejected = True
-                    elif self.direction == "left" and currentCenterX >= prevCenterX:
-                        rejected = True
-
-                if not rejected and currentCenterX is not None:
-                    prevCenterX = currentCenterX
-
-                coords = np.argwhere(barMask == 1).tolist()
-                if rejected:
-                    savePath = os.path.join(self.barMasksDir, f"barMask_x_{idx}.json")
-                else:
-                    savePath = os.path.join(self.barMasksDir, f"barMask_{idx}.json")
-
-                with open(savePath, "w") as f:
-                    json.dump({"coordinates": coords}, f)
-
-        print(f"segmented {len(fnames)} frames")
-
-    def validateFrames(self, modelPath, numSamples=3, imgSize=512):
-        fnames = sorted(
-            os.listdir(self.framesDir),
-            key=lambda x: int(x.split("_")[1].split(".")[0])
-        )
-        if len(fnames) == 0:
-            print("no frames found")
-            return False
-
-        samples = random.sample(fnames, min(numSamples, len(fnames)))
-
-        model = SegformerForSemanticSegmentation.from_pretrained(modelPath)
-        model.to(self.device).eval()
-
-        transform = A.Compose([
-            A.Resize(imgSize, imgSize),
-            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ToTensorV2(),
-        ])
-
-        anyMaskFound = False
-        for fname in samples:
-            imgBGR = cv2.imread(os.path.join(self.framesDir, fname))
-            imgRGB = cv2.cvtColor(imgBGR, cv2.COLOR_BGR2RGB)
-            tensor = transform(image=imgRGB)["image"].unsqueeze(0).to(self.device)
-
-            with torch.no_grad():
-                logits = model(pixel_values=tensor).logits
-                if logits.shape[1] > 1:
-                    logits = logits[:, 1:2]
-                prob = torch.sigmoid(logits).cpu().numpy()[0, 0]
-
-            mask = (prob > 0.5).astype(np.uint8)
-            if mask.sum() > 0:
-                anyMaskFound = True
-                print(f"mask found in sample {fname}")
-            else:
-                print(f"no mask in sample {fname}")
-
-        if not anyMaskFound:
-            print("none of the sampled frames produced a mask — pipeline stopped")
-            return False
-
-        print("validation passed")
-        return True
-
-    def computeGrayHist(self, imgBGR):
-        gray = cv2.cvtColor(imgBGR, cv2.COLOR_BGR2GRAY)
-        hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
-        cv2.normalize(hist, hist)
-        return hist
-
 
     def computeHeatmap(self):
         allRows = []
 
         maskFiles = sorted(
-            [f for f in os.listdir(self.barMasksDir) if f.startswith("barMask_") and "_x_" not in f],
+            [
+                f for f in os.listdir(self.barMasksDir)
+                if f.startswith("barMask_") and "_x_" not in f and "_h_" not in f
+            ],
             key=lambda x: int(x.replace("barMask_", "").replace(".json", ""))
         )
 
@@ -278,9 +221,7 @@ class VideoPipeline:
         np.save(os.path.join(self.outputDir, "heatmapData.npy"), padded)
 
         resized = cv2.resize(padded, (HEATMAP_W, HEATMAP_H), interpolation=cv2.INTER_LINEAR)
-
         smoothed = gaussian_filter(resized, sigma=(5, 9))
-
         normed = smoothed / (smoothed.max() + 1e-8)
         colormap = plt.get_cmap("jet")
         heatmapImg = (colormap(normed)[:, :, :3] * 255).astype(np.uint8)
@@ -297,5 +238,7 @@ pipeline = VideoPipeline(
 )
 
 pipeline.extractFrames()
-pipeline.runSegmentation(modelPath="models/best_segformer_b0_lightbar")
-pipeline.computeHeatmap()
+
+if pipeline.validateFrames(modelPath="models/best_segformer_b0_lightbar"):
+    pipeline.runSegmentation(modelPath="models/best_segformer_b0_lightbar")
+    pipeline.computeHeatmap()

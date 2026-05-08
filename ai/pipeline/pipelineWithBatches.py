@@ -13,7 +13,9 @@ from albumentations.pytorch import ToTensorV2
 
 HEATMAP_W = 1024
 HEATMAP_H = 512
-Threshold = 0.17
+
+
+Threshold = 0.40
 
 
 class VideoPipeline:
@@ -221,7 +223,7 @@ class VideoPipeline:
         np.save(os.path.join(self.outputDir, "heatmapData.npy"), padded)
 
         resized = cv2.resize(padded, (HEATMAP_W, HEATMAP_H), interpolation=cv2.INTER_LINEAR)
-        smoothed = gaussian_filter(resized, sigma=(5, 9))
+        smoothed = gaussian_filter(resized, sigma=(4, 9))
         normed = smoothed / (smoothed.max() + 1e-8)
         colormap = plt.get_cmap("jet")
         heatmapImg = (colormap(normed)[:, :, :3] * 255).astype(np.uint8)
@@ -231,31 +233,84 @@ class VideoPipeline:
         print(f"heatmap saved: {padded.shape[0]} accepted frames x {padded.shape[1]} rows → resized to {HEATMAP_W}x{HEATMAP_H}")
 
 
-    def mergeHeatmaps(left2rightHeatmap, right2leftHeatmap, outputDir="output"):
-        left = cv2.imread(left2rightHeatmap)
-        right = cv2.imread(right2leftHeatmap)
-
-        left = cv2.resize(left, (1024, 512))
-        right = cv2.resize(right, (1024, 512))
-
-        cv2.putText(left, "Left to Right", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        cv2.putText(right, "Right to Left", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-
-        merged = np.hstack([left, right])
-        savePath = os.path.join(outputDir, "mergedHeatmap.png")
-        cv2.imwrite(savePath, merged)
-        print(f"merged heatmap saved to {savePath}")
+GROUND_TRUTH = {
+    "lr":   set(range(170, 178)),
+    "lr(1)": set(range(150, 190)),
+    "lr(2)": set(range(127, 146)),
+    "rl":   set(range(505, 525)),
+    "rl(1)": set(range(281, 308)),
+    "rl(2)": set(range(74, 83)),
+}
 
 
+def evaluateLightingRejection(barMasksDir, videoName):
+    gt = GROUND_TRUTH.get(videoName)
+    if gt is None:
+        print(f"No ground truth found for '{videoName}'")
+        return
 
-pipeline = VideoPipeline(
-    videoPath="vids/lr(2).MOV",
+    predicted = set()
+    for fname in os.listdir(barMasksDir):
+        if "_h_" in fname:
+            idx = int(fname.replace(".json", "").split("_")[-1])
+            predicted.add(idx)
+
+    tp = len(predicted & gt)
+    fp = len(predicted - gt)
+    fn = len(gt - predicted)
+
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+
+    print(f"\n--- Lighting Rejection Evaluation: {videoName} ---")
+    print(f"  Ground truth frames : {len(gt)}")
+    print(f"  Predicted (flagged) : {len(predicted)}")
+    print(f"  TP={tp}  FP={fp}  FN={fn}")
+    print(f"  Precision : {precision:.3f}")
+    print(f"  Recall    : {recall:.3f}")
+
+
+def mergeHeatmaps(left2rightHeatmap, right2leftHeatmap, outputDir="output"):
+    left = cv2.imread(left2rightHeatmap)
+    right = cv2.imread(right2leftHeatmap)
+
+    left = cv2.resize(left, (1024, 512))
+    right = cv2.resize(right, (1024, 512))
+
+    cv2.putText(left, "Left to Right", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(right, "Right to Left", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+    merged = np.hstack([left, right])
+    savePath = os.path.join(outputDir, "mergedHeatmap.png")
+    cv2.imwrite(savePath, merged)
+    print(f"merged heatmap saved to {savePath}")
+
+
+left2rightPipeline = VideoPipeline(
+    videoPath="vids/lr(1).MOV",
     direction="right",
+    outputDir="output/left2right"
+)
+
+right2leftPipeline = VideoPipeline(
+    videoPath="vids/rl(1).MOV",
+    direction="left",
+    outputDir="output/right2left"
+)
+
+left2rightPipeline.extractFrames()
+if left2rightPipeline.validateFrames(modelPath="models/best_segformer_b0_lightbar"):
+    left2rightPipeline.runSegmentation(modelPath="models/best_segformer_b0_lightbar")
+    left2rightPipeline.computeHeatmap()
+
+right2leftPipeline.extractFrames()
+if right2leftPipeline.validateFrames(modelPath="models/best_segformer_b0_lightbar"):
+    right2leftPipeline.runSegmentation(modelPath="models/best_segformer_b0_lightbar")
+    right2leftPipeline.computeHeatmap()
+
+mergeHeatmaps(
+    left2rightHeatmap="output/left2right/heatmap.png",
+    right2leftHeatmap="output/right2left/heatmap.png",
     outputDir="output"
 )
 
-pipeline.extractFrames()
-
-if pipeline.validateFrames(modelPath="models/best_segformer_b0_lightbar"):
-    pipeline.runSegmentation(modelPath="models/best_segformer_b0_lightbar")
-    pipeline.computeHeatmap()

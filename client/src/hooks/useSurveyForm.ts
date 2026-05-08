@@ -2,13 +2,13 @@ import { useState } from 'react';
 
 export const useSurveyForm = () => {
   const [form, setForm] = useState({
-    eye_side: '',
-    gender: '',
-    age: '',
-    city: '',
-    status: '',
-    profession: '',
-    notes: '',
+    EyeSide: '',
+    Gender: '',
+    Age: '',
+    City: '',
+    Status: '',
+    Profession: '',
+    Notes: '',
   });
 
   const updateField = (field: string, value: string) => {
@@ -16,7 +16,7 @@ export const useSurveyForm = () => {
   };
 
   const isFormValid = () => {
-    const { notes, ...requiredFields } = form;
+    const { Notes, ...requiredFields } = form;
     return Object.values(requiredFields).every(value => value.trim() !== '');
   };
 

@@ -231,6 +231,23 @@ class VideoPipeline:
         print(f"heatmap saved: {padded.shape[0]} accepted frames x {padded.shape[1]} rows → resized to {HEATMAP_W}x{HEATMAP_H}")
 
 
+    def mergeHeatmaps(left2rightHeatmap, right2leftHeatmap, outputDir="output"):
+        left = cv2.imread(left2rightHeatmap)
+        right = cv2.imread(right2leftHeatmap)
+
+        left = cv2.resize(left, (1024, 512))
+        right = cv2.resize(right, (1024, 512))
+
+        cv2.putText(left, "Left to Right", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(right, "Right to Left", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+        merged = np.hstack([left, right])
+        savePath = os.path.join(outputDir, "mergedHeatmap.png")
+        cv2.imwrite(savePath, merged)
+        print(f"merged heatmap saved to {savePath}")
+
+
+
 pipeline = VideoPipeline(
     videoPath="vids/lr(2).MOV",
     direction="right",

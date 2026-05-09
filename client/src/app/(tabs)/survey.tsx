@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Audio } from 'expo-av'; // مكتبة التسجيل
+import { Audio } from 'expo-av'; 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -29,7 +29,6 @@ export default function SurveyScreen() {
   const { form, updateField, isFormValid } = useSurveyForm();
   const { videos, addVideo, removeVideo } = useVideoManager(2);
 
-  // --- حالات التسجيل الجديدة ---
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -45,7 +44,6 @@ export default function SurveyScreen() {
     }
   }, [params.videoUris]);
 
-  // --- وظائف التسجيل ---
   async function startRecording() {
     try {
       const permission = await Audio.requestPermissionsAsync();
@@ -83,8 +81,7 @@ export default function SurveyScreen() {
 
 
                   console.log("البيانات المستلمة من السيرفر:", JSON.stringify(result, null, 2));
-                  // هنا نقوم بتعبئة الحقول من الـ JSON الراجع
-                  // ملاحظة: تأكد من مسميات الحقول الراجعة من السيرفر (مثلاً result.Age أو result.age)
+                  
                   if (result) {
                     if (result.EyeSide || result.eyeside) updateField('EyeSide', result.EyeSide || result.eyeside);
                     if (result.Gender || result.gender) updateField('Gender', result.Gender || result.gender);
@@ -122,10 +119,9 @@ export default function SurveyScreen() {
       return;
     }
 
-    setLoading(true); // تشغيل مؤشر التحميل
+    setLoading(true); 
 
     try {
-      // استدعاء الخدمة وإرسال البيانات والفيديوهات
       const response = await surveyService.submitSurvey({
         EyeSide: form.EyeSide,
         Gender: form.Gender,
@@ -145,7 +141,7 @@ export default function SurveyScreen() {
       console.error("Upload Failed:", error);
       Alert.alert("خطأ في الرفع", "تعذر إرسال البيانات للسيرفر، تأكد من الاتصال.");
     } finally {
-      setLoading(false); // إيقاف مؤشر التحميل
+      setLoading(false); 
     }
   };
 
@@ -202,11 +198,10 @@ export default function SurveyScreen() {
             />
           </View>
 
-          {/* --- التعديل الجديد: الزر الدائري --- */}
           <View style={styles.audioSection}>
             <TouchableOpacity
-              onPressIn={startRecording}  // يبدأ عند الضغط
-              onPressOut={stopRecording} // ينتهي عند الرفع
+              onPressIn={startRecording}  
+              onPressOut={stopRecording} 
               style={[styles.micButton, isRecording && styles.micActive]}
             >
               <Ionicons name={isRecording ? "mic" : "mic-outline"} size={35} color="#fff" />
@@ -251,7 +246,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: Colors.primary, // لون المنصة الأساسي
+    backgroundColor: Colors.primary, 
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
@@ -260,7 +255,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
   },
   micActive: {
-    backgroundColor: '#ff4d4d', // يتغير للأحمر عند التسجيل
+    backgroundColor: '#ff4d4d', 
     transform: [{ scale: 1.1 }],
   },
   micText: {
